@@ -45,16 +45,16 @@ void loop() {
   Serial.print("green: " + String(greenBut));
   Serial.print(blueHit);
 
-  //hit settings
-  if(blueButPin == 1){
-    blueHit == true;
-  }
-  if(redButPin == 1){
-    redHit == true;
-  }
-  if(greenButPin == 1){
-    greenHit == true;
-  }
+  // //hit settings
+  // if(blueButPin == 1){
+  //   blueHit == true;
+  // }
+  // if(redButPin == 1){
+  //   redHit == true;
+  // }
+  // if(greenButPin == 1){
+  //   greenHit == true;
+  // }
   
 
 
