@@ -46,10 +46,15 @@ void loop() {
 
   //Serial
   Serial.print("blue: " + String(blueButton));
+  Serial.print("");
   Serial.print("red: " + String(redButton));
+  Serial.print("");
   Serial.print("green: " + String(greenButton));
+  Serial.print("");
   Serial.print(blueButton);
+  Serial.print("");
 
+  //led
   digitalWrite(led1, HIGH);
   digitalWrite(led2, HIGH);
 
