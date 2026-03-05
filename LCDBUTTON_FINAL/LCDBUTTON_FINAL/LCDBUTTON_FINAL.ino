@@ -5,6 +5,7 @@
 LiquidCrystal lcd(53, 52, 51, 50, 49, 48);
 DHT dht(4, DHT11);
 Servo fanServo;
+
 //setup
 const int bluePin = 12;
 const int redPin = 11;
@@ -16,6 +17,12 @@ const int led3 = 6;
 const int flipSwitch = 13;
 const int dhtPin = 4;
 const int servoPin = 5;
+
+//motor control
+const int pwma = 47;
+const int ain1 = 45;
+const int ain2 = 46;
+
 //bring in notes (prolly wont use all tho)
 int getFrequency(char note) {
   if (note == 'g') return 392;
@@ -29,14 +36,34 @@ int getFrequency(char note) {
   if (note == 'c') return 262;
   return 0;
 }
+
 //set up array
 const char colourNote[3] = { 'g', 'E', 'b' };
 const int colourPin[3] = { greenPin, redPin, bluePin };
 const char* colourName[3] = { "GREEN", "RED", "BLUE" };
+
 //init
 int score = 0;
 bool gameRunning = false;
 bool lcdMode = false;
+
+//spin motor by speed (-255 to 255)
+void spinMotor(int motorSpeed) {
+  if (motorSpeed > 0) {
+    digitalWrite(ain1, HIGH);
+    digitalWrite(ain2, LOW);
+    analogWrite(pwma, motorSpeed);
+  } else if (motorSpeed < 0) {
+    digitalWrite(ain1, LOW);
+    digitalWrite(ain2, HIGH);
+    analogWrite(pwma, abs(motorSpeed));
+  } else {
+    digitalWrite(ain1, LOW);
+    digitalWrite(ain2, LOW);
+    analogWrite(pwma, 0);
+  }
+}
+
 //fan fnc by temp / humidity
 void updateFan() {
   float tempC = dht.readTemperature();
@@ -46,27 +73,31 @@ void updateFan() {
     Serial.println("DHT read failed");
     return;
   }
-//conversion, printing to serial for debugging
+
+  //conversion, printing to serial for debugging
   float tempF = tempC * 9.0 / 5.0 + 32.0;
   Serial.print("Temp: ");
   Serial.print(tempF);
   Serial.print("F  Humidity: ");
   Serial.println(humidity);
 
-  if (tempF > 73.5) {
-    int angle = map((int)humidity, 0, 100, 0, 180);
-    fanServo.write(angle);
-    Serial.print("Servo angle: ");
-    Serial.println(angle);
-  } else {
-    fanServo.write(0);
-    Serial.println("Fan OFF (servo at 0)");
+  if (tempF > 60.0 && humidity >= 41 ) {
+    spinMotor(255);
+    Serial.print("Motor speed: ");
+    Serial.println(255);
+  } 
+  else if (tempF > 60.0 && humidity < 41 ){
+    spinMotor(-255);
+    Serial.println("Motor speed: ");
+    Serial.println(-255);
   }
-//switch type
+  else{
+    spinMotor(0);
+    Serial.println("Fan OFF");
+  }
+
+  //switch type
   if (!lcdMode) {
-    float tempC = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    float tempF = tempC * 9.0 / 5.0 + 32.0;
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Temp: ");
@@ -78,6 +109,7 @@ void updateFan() {
     lcd.print("%");
   }
 }
+
 //if game lost, run thru the light show
 void lightShow() {
   for (int i = 0; i < 10; i++) {
@@ -107,6 +139,7 @@ void lightShow() {
   digitalWrite(led3, LOW);
   noTone(speakerPin);
 }
+
 //womp womp
 void showGameOver() {
   if (lcdMode) {
@@ -120,6 +153,7 @@ void showGameOver() {
   lightShow();
   delay(2000);
 }
+
 //game init
 void startGame() {
   score = 0;
@@ -131,7 +165,8 @@ void startGame() {
   }
   delay(1500);
 }
-//correntIndex as wfb fnc param, allows tracking of bops 
+
+//correctIndex as wfb fnc param, allows tracking of bops
 bool waitForButton(int correctIndex) {
   unsigned long start = millis();
   while (millis() - start < 4000) {
@@ -147,6 +182,7 @@ bool waitForButton(int correctIndex) {
   }
   return false;
 }
+
 //yap stuff
 void setup() {
   lcd.begin(16, 2);
@@ -162,18 +198,25 @@ void setup() {
   pinMode(led3, OUTPUT);
   pinMode(speakerPin, OUTPUT);
   pinMode(flipSwitch, INPUT);
+  pinMode(pwma, OUTPUT);
+  pinMode(ain1, OUTPUT);
+  pinMode(ain2, OUTPUT);
 }
+
 //beef
 void loop() {
   lcdMode = (digitalRead(flipSwitch) == HIGH);
   updateFan();
-//game run init
+  Serial.println(score);
+
+  //game run init
   if (lcdMode) {
     if (!gameRunning) {
       startGame();
       Serial.println("Starting game...");
     }
-//cmd crucial for game funcion, allows to cycle through the possibilities randomly
+
+    //cmd crucial for game function, allows to cycle through the possibilities randomly
     int cmd = random(0, 3);
 
     lcd.clear();
@@ -182,13 +225,15 @@ void loop() {
     lcd.setCursor(0, 1);
     lcd.print(colourName[cmd]);
     Serial.println(cmd);
-//speaker command
+
+    //speaker command
     tone(speakerPin, getFrequency(colourNote[cmd]), 300);
     delay(1500);
     noTone(speakerPin);
 
     bool correct = waitForButton(cmd);
-//big fnc, needs debugging ?
+
+    //big fnc, needs debugging ?
     if (correct) {
       score++;
       lcd.clear();
